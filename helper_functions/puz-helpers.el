@@ -1,4 +1,4 @@
-;;; aoc-functions.el --- Advent of Code functions (boj@boj.dk)  -*- lexical-binding: t; -*-
+;;; puz-helpers.el --- Puzzle functions (boj@boj.dk)  -*- lexical-binding: t; -*-
 
 
 
@@ -27,25 +27,6 @@
       (whitespace-mode) ;; show space and newline
       (setq truncate-lines t)))) ;; do not wrap
 
-(defmacro puz-loaders (path day)
-  "Defines puz-load-data and puz-load-testdata loading PATH + `DAY_data.dat' and `DAT_testdata.dat'."
-  `(progn
-     (defun puz-load-data ()
-       ,(format "Load day %02d real input." day )
-       (interactive)
-       (puz-load (concat ,path "/" (format "%02d_data.dat" ,day)))
-       (message ,(format "Load day %02d: real input." day))
-       )
-     (defun puz-load-testdata ()
-       ,(format "Load day %02d test input." day )
-       (interactive)
-       (puz-load (concat ,path "/" (format "%02d_testdata.dat" ,day)))
-     (message ,(format "Load day %02d: test input." day)))))
-
-(keymap-set global-map "C-c p d" #'puz-load-data )
-(keymap-set global-map "C-c p t" #'puz-load-testdata)
-(keymap-set global-map "C-c p r" #'puz-reset)
-(keymap-set global-map "C-c p c" #'puz-compile-all)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; For grid based puzzles
@@ -158,5 +139,5 @@ Wipes both variable values and function definitions."
   (benchmark-call form-fn n))
 ;; (puz-benchmark 10 (lambda () (puz-solve-part2c)))
 
-(provide 'aoc-functions)
-;;; aoc-functions.el ends here
+(provide 'puz-helpers)
+;;; puz-helpers.el ends here
