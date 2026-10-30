@@ -41,12 +41,21 @@
 ;;Read data into a fresh *puz-scratch* buffer.
 (puz-load "../data/everybody_codes_e2026_q03_p2.txt")
 
+;;(mapcar #'string-to-number (split-string line "[^0-9]+" t))
+
+
 
 (defun solve-part2 ()
   (let* ((data (with-current-buffer "*puz-scratch*"
-                 (mapcar #'string-to-number (split-string (buffer-string) ","  t))))
-         )
-    nil))
+                 (split-string (buffer-string) "\n"  t)))
+         (decode (lambda  (base num)
+                   (cl-loop with b = (reverse (mapcar #'string-to-number (split-string base "" t)))
+                            for n in (reverse (mapcar #'string-to-number (split-string num "" t)))
+                            for i from 0
+                            sum (* (expt (nth (mod i (length base)) b) i) n)))))
+    (cl-loop for line in data
+             for (base num) = (split-string (substring line 4 nil) "[^0-9]+" t)
+             sum (funcall decode base num))))
 
 (message "Solution for part 2 is = %S" (solve-part2))
 
