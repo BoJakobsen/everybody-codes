@@ -1,4 +1,4 @@
-;;; quest_05.el --- LotW 2026 Day 01 -*- lexical-binding: t; -*-
+;;; quest_05.el --- LotW 2026 Day 05 -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
@@ -14,10 +14,6 @@
 (require 'cl-lib)
 
 
-;; PART 1
-
-;;Read data into a fresh *puz-scratch* buffer.
-(puz-load "../data/everybody_codes_e2026_q05_p1.txt")
 
 (defvar puz-grid-n-cols nil "Width of the current puzzle grid (chars)." )
 (defvar puz-grid-n-rows nil "Height of the current puzzle grid (lines)." )
@@ -37,7 +33,7 @@ Updates puz-grid-n-cols, puz-grid-n-rows, puz-grid-offsets."
                   (+ stride -1) (+ stride)   (+ stride 1 ))))
     (let* ((data (split-string (buffer-string) "\n" t))
            (padded  (cl-loop for line in data
-                             collect (vconcat (list pad-char)  (vconcat line) (list pad-char))))
+                             collect (vconcat (list pad-char)  line (list pad-char))))
            (padding (make-vector (length (seq-elt padded 0 )) pad-char)))
       (message "Grid size. n-cols: %d, n-rows: %d" puz-grid-n-cols puz-grid-n-rows)
       (apply #'vconcat (append (push padding padded) (list padding))))))
@@ -62,9 +58,13 @@ Updates puz-grid-n-cols, puz-grid-n-rows, puz-grid-offsets."
                                                  (puz-grid-vector-to-pos 0 r)
                                                  (puz-grid-vector-to-pos puz-grid-n-cols r))))))))
 
+;; PART 1
+
+;;Read data into a fresh *puz-scratch* buffer.
+(puz-load "../data/everybody_codes_e2026_q05_p1.txt")
 
 (defun solve-part1 ()
-  (let* ((data (mapcar (lambda (c) (- c ?0)) (puz-grid-to-vec-init (+ -1 ?0 ))))
+  (let* ((data (cl-map 'vector (lambda (c) (- c ?0)) (puz-grid-to-vec-init (+ -1 ?0 ))))
          (start_row (floor puz-grid-n-rows 2))
          (start_col (floor puz-grid-n-cols 2))
          (fifo_front (list (puz-grid-vector-to-pos start_col start_row)))
@@ -73,10 +73,7 @@ Updates puz-grid-n-cols, puz-grid-n-rows, puz-grid-offsets."
     (while fifo_front
      (let* ((center (pop fifo_front)))
       (cl-loop for upd in (cl-loop for nab in (puz-grid-vector-find-nab data center 0 1)
-                                   for nab_type = (seq-elt data nab)
-                                   if (and (>= (+ (length (puz-grid-vector-find-nab data nab  1))
-                                                  (length (puz-grid-vector-find-nab data nab  2))) 5)
-                                           (or (= nab_type 1) (= nab_type 0)))
+                                   if (>= (length (puz-grid-vector-find-nab data nab  1 2)) 5)
                                    collect nab)
                do (push upd fifo_end)
                do (setf (seq-elt data upd) 2))
