@@ -1,4 +1,4 @@
-;;; quest_XX.el --- LotW 2026 Day 01 -*- lexical-binding: t; -*-
+;;; quest_XX.el --- LotW 2026 Day XX -*- lexical-binding: t; -*-
 
 ;;; Commentary:
 
