@@ -12,7 +12,7 @@
                                 (or load-file-name buffer-file-name))))
 (require 'puz-helpers) ; REMEMBER this does not reload changes from the file
 (require 'cl-lib)
-
+(require 'map)
 
 ;; PART 1
 
@@ -80,32 +80,33 @@
 ;;Read data into a fresh *puz-scratch* buffer.
 (puz-load "../data/everybody_codes_e2026_q06_p3.txt")
 
-(defun puz-search-tree2 (tree start)
-  (let ((seen (make-hash-table :test 'equal))
-    (fifo-front (list start))
-    (fifo-end nil))
-    (while (and fifo-front (not (map-elt "NULLv2" seen))
-              (not (map-elt "NULLv1" seen)))
-    (let ((ing (pop fifo-front)))
-      (puthash ing t seen)
-      (cl-loop for new-ing in (cdr (assoc ing tree))
-               unless (gethash new-ing seen)
-               do (push new-ing fifo-end))
-      (unless fifo-front
-        (setq fifo-front fifo-end)
-        (setq fifo-end nil))))
-  (if (and (map-elt "NULLv2" seen)
-              (map-elt "NULLv1" seen))
-      t)))
-
 (defun solve-part3  ()
   (let* ((data (with-current-buffer "*puz-scratch*"
-                 (mapcar (lambda (lin) (split-string lin ":" t )  ) (split-string (buffer-string) "\n"  t))))
-         (tree (cl-loop for (key parents) in data
-                        collect (cons key (split-string parents "," t)))))
-    (cl-loop for ing in (map-keys tree) 
-             count (puz-search-tree2 tree ing))))
+                 (mapcar (lambda (lin) (split-string lin ":" t )  )
+                         (split-string (buffer-string) "\n"  t))))
+         (tree (map-into (cl-loop for (key parents) in data
+                                  collect (cons key (split-string parents "," t)))
+                         '(hash-table :test equal)))
+         (seen nil) ;dummy deff
+         (cache (make-hash-table :test 'equal)))
+    (cl-labels ((iterate-it (key)
+                  (if (member key (list "NULLv1" "NULLv2" "NULLv3"))
+                      (list key)
+                    (cl-loop for new-key in (gethash key tree)
+                             unless (gethash new-key seen)
+                             do (puthash new-key t seen) and
+                             append (or (gethash new-key cache) (iterate-it new-key)) into cnt
+                             finally do (puthash key cnt cache)
+                             finally return cnt))))
+      (cl-loop for key in (map-keys tree)
+               do (setq seen (make-hash-table :test 'equal))
+               count (<= 2 (length (iterate-it key)))
+               ))))
 
+(setq max-lisp-eval-depth 10000 )
+(solve-part3)
+
+(cl-intersection (list "a" "b") (list "c" "a") :test 'equal)
 (message "Solution for part 3 is = %S" (solve-part3))
 
 ;;; quest_06.el ends here
