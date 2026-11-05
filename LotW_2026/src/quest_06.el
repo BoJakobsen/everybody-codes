@@ -100,13 +100,11 @@
                              finally return cnt))))
       (cl-loop for key in (map-keys tree)
                do (setq seen (make-hash-table :test 'equal))
-               count (<= 2 (length (iterate-it key)))
-               ))))
+               count (<= 2 (length (seq-uniq (iterate-it key))))))))
 
 (setq max-lisp-eval-depth 10000 )
-(solve-part3)
+(solve-part3);1576
 
-(cl-intersection (list "a" "b") (list "c" "a") :test 'equal)
 (message "Solution for part 3 is = %S" (solve-part3))
 
 ;;; quest_06.el ends here
