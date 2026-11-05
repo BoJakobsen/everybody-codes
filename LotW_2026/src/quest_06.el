@@ -26,8 +26,7 @@
                         collect (cons key (split-string parents "," t))))
          (seen (make-hash-table :test 'equal))
          (fifo-front (list "NULL"))
-         (fifo-end nil)
-         )
+         (fifo-end nil))
     (while fifo-front
       (let ((ing (pop fifo-front)))
         (puthash ing t seen)
@@ -45,7 +44,6 @@
 
 ;;Read data into a fresh *puz-scratch* buffer.
 (puz-load "../data/everybody_codes_e2026_q06_p2.txt")
-
 
 (defun puz-search-tree2 (tree start target)
   (let ((seen (make-hash-table :test 'equal))
@@ -95,16 +93,16 @@
                     (cl-loop for new-key in (gethash key tree)
                              unless (gethash new-key seen)
                              do (puthash new-key t seen) and
-                             append (or (gethash new-key cache) (iterate-it new-key)) into cnt
-                             finally do (puthash key cnt cache)
-                             finally return cnt))))
+                             append (or (gethash new-key cache) (iterate-it new-key)) into nulls
+                             finally return nulls))))
       (cl-loop for key in (map-keys tree)
                do (setq seen (make-hash-table :test 'equal))
-               count (<= 2 (length (seq-uniq (iterate-it key))))))))
+               for nulls = (seq-uniq (iterate-it key))
+               count (<= 2 (length nulls ))
+               finally do (puthash key nulls cache); Note, we can only cache at this top level
+               ))))                                ; Due to circular links
 
 (setq max-lisp-eval-depth 10000 )
-(solve-part3);1576
-
 (message "Solution for part 3 is = %S" (solve-part3))
 
 ;;; quest_06.el ends here
