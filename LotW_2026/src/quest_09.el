@@ -49,14 +49,31 @@
 ;;Read data into a fresh *puz-scratch* buffer.
 (puz-load "../data/everybody_codes_e2026_q09_p2.txt")
 
-
-(defun solve-part2 ()
+(defun puz-solve-part2 ()
   (let* ((data (with-current-buffer "*puz-scratch*"
-                 (mapcar #'string-to-number (split-string (buffer-string) ","  t))))
-         )
-    nil))
+                 (mapcar (lambda (line)
+                           (mapcar #'string-to-number  (split-string line  "[^0-9]+" t)))
+                         (split-string (buffer-string) "\n"  t))))
+         (grow-it (lambda (tree growth)
+                    (cl-loop for branch in-ref tree
+                             if (<= 0 branch)
+                             do (cl-incf branch)
+                             if (= branch growth)
+                             do (progn
+                                  (setq branch 1)
+                                  (push -1 tree) ; mark branch point
+                                  (push (floor growth 2) tree)
+                                  (push (floor growth 2) tree)))
+                    tree)))
+    (cl-loop for (id growth lim) in data
+             for tree = (list 0)
+             sum (cl-loop for n from 1
+                         do (setq tree (funcall grow-it tree growth))
+                         if (<= lim (1+ (seq-count (lambda (n) (> 0 n)) tree)))
+                         return n))))
 
-(message "Solution for part 2 is = %S" (solve-part2))
+
+(message "Solution for part 2 is = %S" (puz-solve-part2))
 
 ;; PART 3
 
