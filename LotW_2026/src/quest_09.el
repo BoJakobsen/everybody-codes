@@ -126,10 +126,11 @@
                            (mapcar #'string-to-number  (split-string line  "[^0-9]+" t)))
                          (split-string (buffer-string) "\n"  t))))
          (tree (make-hash-table))  ;; will be modified by `grow-it'
+         (new-tree (make-hash-table))  ;; will be modified by `grow-it'
          (branch-points 0) ;; will be modified by `grow-it'
          (grow-it (lambda (growth)
+                    (clrhash new-tree)
                     (cl-loop with dt = (- growth (seq-max (map-keys tree)))
-                             with new-tree = (make-hash-table)
                              for length being the hash-key of tree using (hash-value n)
                              for new-length = (+ length dt)
                              if (= new-length growth) ;; this length splits 
@@ -140,14 +141,14 @@
                              else ; just grow it
                              do (progn
                                   (cl-incf (gethash new-length new-tree 0) n))
-                             finally do (setq tree new-tree)
+                             finally do (cl-rotatef tree new-tree)
                              finally return dt))))
-    (cl-loop for (id growth lim) in data
-             do (setq tree (clrhash tree))
+    (cl-loop for (_id growth lim) in data
+             do (clrhash tree)
              do (puthash 1 1 tree) ; Start is one branch of length 1 
              do (setq  branch-points 1) ; giving one "leaf/branch point"
              sum (cl-loop with time = 1  ; We start at 1 as we have grown from 0 to 1 here
-                         for n from 1
+                         for _n from 1
                          if (> lim branch-points) ; have we grown enough ?
                          do (cl-incf time (funcall grow-it growth)) ; grow to next branching time
                          else return time))))
