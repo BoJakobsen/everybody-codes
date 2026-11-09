@@ -35,6 +35,7 @@
 (defvar puz-grid-n-cols nil "Width of the current puzzle grid (chars)." )
 (defvar puz-grid-n-rows nil "Height of the current puzzle grid (lines)." )
 (defvar puz-grid-offsets nil "Precomputed 8-neighbor buffer offsets." )
+(defvar puz-grid-stride nil "Precomputed stride." )
 
 ;; As elisp does not have 2d vectors, the grid is best represented as a 1d vector
 ;; with converting functions.
@@ -49,7 +50,8 @@ Returns the vectorized grid."
     (goto-char (point-min))
     (setq puz-grid-n-cols (- (line-end-position) (line-beginning-position)))
     (setq puz-grid-n-rows (count-lines (point-min) (point-max)))
-    (let ((stride (+ 2 puz-grid-n-cols)))
+    (setq puz-grid-stride (+ 2 puz-grid-n-cols))
+    (let ((stride puz-grid-stride))
       (setq puz-grid-offsets
             (list (- -1 stride) (- stride) (- 1 stride)
                   (- 1)                     (+ 1)
