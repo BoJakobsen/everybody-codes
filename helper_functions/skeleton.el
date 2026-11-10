@@ -19,13 +19,13 @@
 ;;Read data into a fresh *puz-scratch* buffer.
 (puz-load "../data/everybody_codes_e2026_qXX_p1.txt")
 
-(defun solve-part1 ()
+(defun puz-solve-part1 ()
   (let* ((data (with-current-buffer "*puz-scratch*"
                  (mapcar #'string-to-number (split-string (buffer-string) ","  t))))
          )
     nil))
 
-(message "Solution for part 1 is = %S" (solve-part1))
+(message "Solution for part 1 is = %S" (puz-solve-part1))
 
 ;; PART 2
 
@@ -33,27 +33,27 @@
 (puz-load "../data/everybody_codes_e2026_qXX_p2.txt")
 
 
-(defun solve-part2 ()
+(defun puz-solve-part2 ()
   (let* ((data (with-current-buffer "*puz-scratch*"
                  (mapcar #'string-to-number (split-string (buffer-string) ","  t))))
          )
     nil))
 
-(message "Solution for part 2 is = %S" (solve-part2))
+(message "Solution for part 2 is = %S" (puz-solve-part2))
 
 ;; PART 3
 
 ;;Read data into a fresh *puz-scratch* buffer.
 (puz-load "../data/everybody_codes_e2026_qXX_p3.txt")
 
-(defun solve-part3 ()
+(defun puz-solve-part3 ()
   (let* ((data (with-current-buffer "*puz-scratch*"
                  (mapcar #'string-to-number (split-string (buffer-string) ","  t))))
          )
     nil))
 
 
-(message "Solution for part 3 is = %S" (solve-part3))
+(message "Solution for part 3 is = %S" (puz-solve-part3))
 
 ;;; quest_XX.el ends here
 
