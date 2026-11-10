@@ -84,17 +84,84 @@
 
 ;; PART 2
 
+(defun puz-solve-part2 ()
+  (let* ((vgrid (puz-grid-to-vec-init ?* )) ;from puz-helpers
+         (kill-limit 10000)
+         (nghost 0)
+         (ghosts (make-hash-table))
+         (new-ghosts (make-hash-table))
+         (move-them (lambda ()
+                      (clrhash new-ghosts)
+                      (cl-loop for pos being the hash-key of ghosts using (hash-value ghost-dirs)
+                               do (cl-loop for ghost in ghost-dirs
+                                           do (pcase (car ghost)
+                                                (?v
+                                                 (if (= ?# (aref vgrid (+ pos puz-grid-stride)))
+                                                     (push (cons ?< (1+ (cdr ghost))  ) (gethash pos new-ghosts nil))
+                                                   (push ghost (gethash (+ pos puz-grid-stride) new-ghosts nil))))
+                                                (?^
+                                                 (if (= ?# (aref vgrid (- pos puz-grid-stride)))
+                                                     (push (cons ?> (1+ (cdr ghost)))  (gethash pos new-ghosts nil))
+                                                   (push ghost (gethash (- pos puz-grid-stride) new-ghosts nil))))
+                                                (?<
+                                                 (if (= ?# (aref vgrid (- pos 1)))
+                                                     (push (cons ?^ (1+ (cdr ghost))) (gethash pos new-ghosts nil))
+                                                   (push ghost (gethash (- pos 1) new-ghosts nil))))
+                                                (?>
+                                                 (if (= ?# (aref vgrid (+ pos 1)))
+                                                     (push (cons ?v (1+ (cdr ghost))) (gethash pos new-ghosts nil))
+                                                   (push ghost (gethash (+ pos 1) new-ghosts nil))))))
+                               finally do (cl-rotatef ghosts new-ghosts))))
+         (collide-them (lambda ()
+                         (clrhash new-ghosts)
+                         (cl-loop for pos being the hash-key of ghosts using (hash-value ghost-dirs)
+                                  if (< 1 (length ghost-dirs))
+                                  do (cl-loop for ghost in ghost-dirs
+                                              do (pcase (car ghost)
+                                                   (?v
+                                                    (push (cons ?^ (1+ (cdr ghost))) (gethash  pos new-ghosts nil)))
+                                                   (?^
+                                                    (push (cons ?v (1+ (cdr ghost))) (gethash  pos new-ghosts nil)))
+                                                   (?<
+                                                    (push (cons ?> (1+ (cdr ghost))) (gethash  pos new-ghosts nil)))
+                                                   (?>
+                                                    (push (cons ?< (1+ (cdr ghost))) (gethash  pos new-ghosts nil))
+                                                    )))
+                                  else do (push (nth 0 ghost-dirs) (gethash pos new-ghosts nil)) end
+                                  finally do (cl-rotatef ghosts new-ghosts))))
+         (kill-them (lambda ()
+                      (clrhash new-ghosts)
+                      (cl-loop for pos being the hash-key of ghosts using (hash-value ghost-dirs)
+                               do (cl-loop for ghost in ghost-dirs
+                                           if (= (cdr ghost) kill-limit)
+                                           do (cl-decf nghost)
+                                           else
+                                           do (push ghost (gethash pos new-ghosts nil)))
+                               finally do (cl-rotatef ghosts new-ghosts)))))
+    (cl-loop for c across vgrid ; find ghosts 
+             for pos from 0
+             if (memq c '(?< ?> ?^ ?v))
+             do (push (cons c 0)  (gethash pos ghosts nil)) and
+             do (cl-incf nghost))
+                                        ;(funcall move-them)
+                                        ;(funcall collide-them)
+    ;(cl-loop for pos being the hash-key of ghosts using (hash-value ghost-dirs)
+    ;         do (message "%s %s"  pos ghost-dirs))
+    (cl-loop for n from 1 
+             do (funcall move-them)
+             do (funcall kill-them)
+             do (funcall collide-them)
+             do (funcall kill-them)
+             ;do (message "%s %s" n nghost )
+             if (= 0 nghost)
+             return n)))
+;(puz-solve-part2)
 ;;Read data into a fresh *puz-scratch* buffer.
 (puz-load "../data/everybody_codes_e2026_q10_p2.txt")
 
+(message "Solution for part 2 is = %S" (puz-solve-part2))
 
-(defun solve-part2 ()
-  (let* ((data (with-current-buffer "*puz-scratch*"
-                 (mapcar #'string-to-number (split-string (buffer-string) ","  t))))
-         )
-    nil))
 
-(message "Solution for part 2 is = %S" (solve-part2))
 
 ;; PART 3
 
