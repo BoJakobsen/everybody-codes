@@ -262,19 +262,10 @@
 
 ;; Part 3
 
-(defun puz-solve-part3 ()
-  (let* ((kill-limit 1000000000000)
-         (vgrid (puz-grid-to-vec-init ?* )) ;from puz-helpers
-         (ghosts (puz-find-ghosts vgrid))
-         (collisions (make-vector (length ghosts) 0))
-         (nghosts (length ghosts))
-         (snap-ghosts (copy-tree ghosts t))
-         (snap-collisions (copy-tree collisions t))
-         (trails 1)
-         (m 0)
-         (loop-length nil)
-         (max-collisions 0)
-         )
+(defun puz-find-loop (ghosts vgrid collisions snap-collisions kill-limit m)
+  (let ((snap-ghost (copy-tree ghosts t))
+        (loop-length nil)
+        (trails 1))
     (while (not loop-length)
       (setq snap-ghosts (copy-tree ghosts t))
       (setq snap-collisions (copy-tree collisions t))
@@ -286,6 +277,23 @@
                      return n
                      finally return nil))
       (setq trails (* trails 2)))
+    (cons loop-length m)
+    ))
+
+(defun puz-solve-part3 ()
+  (let* ((kill-limit 1000000000000)
+         (vgrid (puz-grid-to-vec-init ?* )) ;from puz-helpers
+         (ghosts (puz-find-ghosts vgrid))
+         (collisions (make-vector (length ghosts) 0))
+         (nghosts (length ghosts))
+         ;(snap-ghosts (copy-tree ghosts t))
+         (snap-collisions (copy-tree collisions t))
+         (trails 1)
+         (m 0)
+         (loop-length nil)
+         (max-collisions 0)
+         )
+    (pcase-setq `(,loop-length . ,m) (puz-find-loop  ghosts vgrid collisions snap-collisions kill-limit m))
     (setq max-collisions (cl-loop for x across collisions
                                   for y across snap-collisions
                                   maximize (- x y)
