@@ -221,6 +221,7 @@
            for ghost across-ref ghosts
            if (and ghost  (= collision kill-limit))
            do (setf ghost nil)
+           and count t           
            ))
 
 (defun puz-find-ghosts (vgrid)
@@ -233,28 +234,74 @@
                     ))))
 
 (defun puz-do-cycle (ghosts vgrid kill-limit collisions)
-  (puz-move-them ghosts vgrid collisions)
-  (puz-kill-them ghosts kill-limit collisions)
-  (puz-collide-them ghosts collisions)
-  (puz-kill-them ghosts kill-limit collisions))
+  (let ((killed 0))
+    (puz-move-them ghosts vgrid collisions)
+    (cl-incf killed (puz-kill-them ghosts kill-limit collisions))
+    (puz-collide-them ghosts collisions)
+    (cl-incf killed (puz-kill-them ghosts kill-limit collisions))
+    killed))
 
 ;; Redo part 2, to test the logic
 (defun puz-solve-part2-take2 ()
   (let* ((kill-limit 10000)
          (vgrid (puz-grid-to-vec-init ?* )) ;from puz-helpers
          (ghosts (puz-find-ghosts vgrid))
-         (collisions (make-vector (length ghosts) 0)))
+         (collisions (make-vector (length ghosts) 0))
+         (nghosts (length ghosts)))
     (cl-loop for n from 1
-             do (puz-do-cycle ghosts vgrid kill-limit collisions)
-             if (= 0 (seq-count #'identity  ghosts))
+             sum (puz-do-cycle ghosts vgrid kill-limit collisions) into killed
+             if (= killed nghosts)
              return n)))
 
 (puz-load "../data/everybody_codes_e2026_q10_p2.txt")
 (puz-solve-part2-take2) ;; works but seems a bit slower
 
-(benchmark-run 5 (puz-solve-part2-take2)) ; 78s
-(benchmark-run 5 (puz-solve-part2)); 38 s
+(benchmark-run 5 (puz-solve-part2-take2)) ; 72s, it is slower
+;(benchmark-run 5 (puz-solve-part2)); 38 s
 
+
+;; Part 3
+
+(defun puz-solve-part3 ()
+  (let* ((kill-limit 1000000000000)
+         (vgrid (puz-grid-to-vec-init ?* )) ;from puz-helpers
+         (ghosts (puz-find-ghosts vgrid))
+         (collisions (make-vector (length ghosts) 0))
+         (nghosts (length ghosts))
+         (snap-ghosts (copy-tree ghosts t))
+         (snap-collisions (copy-tree collisions t))
+         (trails 1)
+         (m 0)
+         (loop-length nil)
+         (max-collisions 0)
+         )
+    (while (not loop-length)
+      (setq snap-ghosts (copy-tree ghosts t))
+      (setq snap-collisions (copy-tree collisions t))
+      (setq loop-length
+            (cl-loop for n from 1 to trails
+                     do (puz-do-cycle ghosts vgrid kill-limit collisions)
+                     do (cl-incf m) ; count how many loops we have done in total
+                     if (equal ghosts snap-ghosts)
+                     return n
+                     finally return nil))
+      (setq trails (* trails 2)))
+    (setq max-collisions (cl-loop for x across collisions
+                                  for y across snap-collisions
+                                  maximize (- x y)
+                                  ))
+    (message "%s %s %s" loop-length max-collisions m)
+    ;; now skip most of the simulation from here
+    (cl-loop with nskip = (1- (floor (- kill-limit m) max-collisions)) ;conservative guess on number to skip
+             for collision across-ref collisions
+             for snap-collision across snap-collisions
+             for col-skip = (- collision snap-collision) ;collisions per loop
+             do (setf collision (+ collision (* col-skip nskip))))
+    (seq-map (lambda (c) (- kill-limit c ))  collisions)
+    ))
+
+(puz-load "../data/everybody_codes_e2026_q10_p3.txt")
+(puz-solve-part3) ;; 
 
 
 ;; OLD part 3
