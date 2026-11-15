@@ -234,6 +234,7 @@
                     ))))
 
 (defun puz-do-cycle (ghosts vgrid kill-limit collisions)
+  "Returns number of killed."
   (let ((killed 0))
     (puz-move-them ghosts vgrid collisions)
     (cl-incf killed (puz-kill-them ghosts kill-limit collisions))
@@ -254,31 +255,71 @@
              return n)))
 
 (puz-load "../data/everybody_codes_e2026_q10_p2.txt")
-(puz-solve-part2-take2) ;; works but seems a bit slower
 
-(benchmark-run 5 (puz-solve-part2-take2)) ; 72s, it is slower
+;; works but seems a bit slower
+(message "Solution for part 2 is = %S" (puz-solve-part2-take2))
+;(benchmark-run 5 (puz-solve-part2-take2)) ; 72s, it is slower
 ;(benchmark-run 5 (puz-solve-part2)); 38 s
 
 
 ;; Part 3
 
-(defun puz-find-loop (ghosts vgrid collisions snap-collisions kill-limit m)
-  (let ((snap-ghost (copy-tree ghosts t))
+(defun puz-advance-loop (ghosts vgrid collisions kill-limit m killed)
+  (let ((snap-ghosts (copy-tree ghosts t))
         (loop-length nil)
-        (trails 1))
-    (while (not loop-length)
+        (trails 1)
+        (nghosts (length collisions))
+        (snap-collisions nil)
+        (max-forward nil))
+    (while (and (not loop-length) (< killed nghosts))
       (setq snap-ghosts (copy-tree ghosts t))
       (setq snap-collisions (copy-tree collisions t))
       (setq loop-length
             (cl-loop for n from 1 to trails
-                     do (puz-do-cycle ghosts vgrid kill-limit collisions)
-                     do (cl-incf m) ; count how many loops we have done in total
-                     if (equal ghosts snap-ghosts)
+                     do (cl-incf killed (puz-do-cycle ghosts vgrid kill-limit collisions))
+                     do (cl-incf m 1) ; count how many loops we have done in total
+                     if (or (equal ghosts snap-ghosts) (= killed nghosts))
                      return n
                      finally return nil))
       (setq trails (* trails 2)))
-    (cons loop-length m)
+    (unless (= killed nghosts)    
+      (setq max-forward (cl-loop for x across collisions
+                                 for y across snap-collisions
+                                 for ghost across ghosts
+                                 if ghost
+                                 minimize (floor (- kill-limit x 1) (- x y))))
+      ;; now skip forward as long as possible
+      (cl-loop for collision across-ref collisions
+               for snap-collision across snap-collisions
+               for ghost across ghosts
+               for col-skip = (- collision snap-collision) ;collisions per loop
+               if ghost
+               do (setf collision (+ collision (* col-skip max-forward)))
+               finally do (cl-incf m (* max-forward loop-length))))
+    (message "%s %s %s" loop-length killed m)
+    (cons m killed)))
+
+;; test on part 2
+(defun puz-solve-part2-take3 ()
+  (let* ((kill-limit 10000)
+         (vgrid (puz-grid-to-vec-init ?* )) ;from puz-helpers
+         (ghosts (puz-find-ghosts vgrid))
+         (collisions (make-vector (length ghosts) 0))
+         (nghosts (length ghosts))
+         (m 0)
+         (killed 0)
+         )
+    ;(message "%s" nghosts) ;36
+    (while (< killed nghosts)
+    (pcase-setq `(,m . ,killed)   (puz-advance-loop ghosts vgrid collisions  kill-limit m killed)))
+    ;(message "%s" (seq-map (lambda (c) (- kill-limit c ))  collisions))
+    m
     ))
+
+(puz-load "../data/everybody_codes_e2026_q10_p2.txt")
+(message "Solution for part 2 is = %S" (puz-solve-part2-take3))
+(message "Solution for part 2 is = %S" (puz-solve-part2-take2)); 145597
+
 
 (defun puz-solve-part3 ()
   (let* ((kill-limit 1000000000000)
@@ -286,145 +327,20 @@
          (ghosts (puz-find-ghosts vgrid))
          (collisions (make-vector (length ghosts) 0))
          (nghosts (length ghosts))
-         ;(snap-ghosts (copy-tree ghosts t))
-         (snap-collisions (copy-tree collisions t))
-         (trails 1)
          (m 0)
-         (loop-length nil)
-         (max-collisions 0)
+         (killed 0)
          )
-    (pcase-setq `(,loop-length . ,m) (puz-find-loop  ghosts vgrid collisions snap-collisions kill-limit m))
-    (setq max-collisions (cl-loop for x across collisions
-                                  for y across snap-collisions
-                                  maximize (- x y)
-                                  ))
-    (message "%s %s %s" loop-length max-collisions m)
-    ;; now skip most of the simulation from here
-    (cl-loop with nskip = (1- (floor (- kill-limit m) max-collisions)) ;conservative guess on number to skip
-             for collision across-ref collisions
-             for snap-collision across snap-collisions
-             for col-skip = (- collision snap-collision) ;collisions per loop
-             do (setf collision (+ collision (* col-skip nskip))))
-    (seq-map (lambda (c) (- kill-limit c ))  collisions)
+    ;(message "%s" nghosts) ;36
+    (while (< killed nghosts)
+    (pcase-setq `(,m . ,killed)   (puz-advance-loop ghosts vgrid collisions  kill-limit m killed)))
+    ;(message "%s" (seq-map (lambda (c) (- kill-limit c ))  collisions))
+    m
     ))
 
+
 (puz-load "../data/everybody_codes_e2026_q10_p3.txt")
-(puz-solve-part3) ;; 
+(message "Solution for part 3 is = %S" (puz-solve-part3))
 
-
-;; OLD part 3
-(defun puz-solve-part3 ()
-  (let* ((vgrid (puz-grid-to-vec-init ?* )) ;from puz-helpers
-         (kill-limit 1000000000000) ; Large number
-         (n 0)
-         (nghost 0)
-         (ninitial 10000)
-         (nloop 0)
-         (maxcollide 0)
-         (ghosts (make-hash-table))
-         (new-ghosts (make-hash-table))
-         (inital-ghosts (make-hash-table))
-         (move-them (lambda ()
-                      (clrhash new-ghosts)
-                      (cl-loop for pos being the hash-key of ghosts using (hash-value ghost-dirs)
-                               do (cl-loop for ghost in ghost-dirs
-                                           do (pcase (car ghost)
-                                                (?v
-                                                 (if (= ?# (aref vgrid (+ pos puz-grid-stride)))
-                                                     (push (cons ?< (1+ (cdr ghost))  ) (gethash pos new-ghosts nil))
-                                                   (push ghost (gethash (+ pos puz-grid-stride) new-ghosts nil))))
-                                                (?^
-                                                 (if (= ?# (aref vgrid (- pos puz-grid-stride)))
-                                                     (push (cons ?> (1+ (cdr ghost)))  (gethash pos new-ghosts nil))
-                                                   (push ghost (gethash (- pos puz-grid-stride) new-ghosts nil))))
-                                                (?<
-                                                 (if (= ?# (aref vgrid (- pos 1)))
-                                                     (push (cons ?^ (1+ (cdr ghost))) (gethash pos new-ghosts nil))
-                                                   (push ghost (gethash (- pos 1) new-ghosts nil))))
-                                                (?>
-                                                 (if (= ?# (aref vgrid (+ pos 1)))
-                                                     (push (cons ?v (1+ (cdr ghost))) (gethash pos new-ghosts nil))
-                                                   (push ghost (gethash (+ pos 1) new-ghosts nil))))))
-                               finally do (cl-rotatef ghosts new-ghosts))))
-         (collide-them (lambda ()
-                         (clrhash new-ghosts)
-                         (cl-loop for pos being the hash-key of ghosts using (hash-value ghost-dirs)
-                                  if (< 1 (length ghost-dirs))
-                                  do (cl-loop for ghost in ghost-dirs
-                                              do (pcase (car ghost)
-                                                   (?v
-                                                    (push (cons ?^ (1+ (cdr ghost))) (gethash  pos new-ghosts nil)))
-                                                   (?^
-                                                    (push (cons ?v (1+ (cdr ghost))) (gethash  pos new-ghosts nil)))
-                                                   (?<
-                                                    (push (cons ?> (1+ (cdr ghost))) (gethash  pos new-ghosts nil)))
-                                                   (?>
-                                                    (push (cons ?< (1+ (cdr ghost))) (gethash  pos new-ghosts nil))
-                                                    )))
-                                  else do (push (nth 0 ghost-dirs) (gethash pos new-ghosts nil)) end
-                                  finally do (cl-rotatef ghosts new-ghosts))))
-         (kill-them (lambda ()
-                      (clrhash new-ghosts)
-                      (cl-loop for pos being the hash-key of ghosts using (hash-value ghost-dirs)
-                               do (cl-loop for ghost in ghost-dirs
-                                           if (= (cdr ghost) kill-limit)
-                                           do (cl-decf nghost)
-                                           else
-                                           do (push ghost (gethash pos new-ghosts nil)))
-                               finally do (cl-rotatef ghosts new-ghosts)))))
-    (cl-loop for c across vgrid ; find ghosts 
-             for pos from 0
-             if (memq c '(?< ?> ?^ ?v))
-             do (push (cons c 0)  (gethash pos ghosts nil)) and
-             do (cl-incf nghost))
-    ;; get rid of initial condition to finde the looping pattern
-    (cl-loop for n from 1 to ninitial 
-             do (funcall move-them)             
-             do (funcall collide-them))
-    (cl-incf n ninitial)
-    ; Find looping pattern
-    (setq initial-ghosts  (copy-hash-table ghosts))              
-    (setq nloop (cl-loop for n from 1 
-                         do (funcall move-them)
-                         do (funcall collide-them)
-                         if (and (seq-set-equal-p (map-keys ghosts) (map-keys initial-ghosts)) 
-                                 (cl-loop for pos being the hash-key of ghosts 
-                                          always (seq-set-equal-p
-                                                  (mapcar #'car (gethash pos ghosts))
-                                                  (mapcar #'car (gethash pos initial-ghosts)))))
-                         return n))
-    (cl-incf n nloop )
-    ;;Properly not robust
-    (setq maxcollide (cl-loop for pos being the hash-key of ghosts
-             maximize (cl-loop for new-ghost in (gethash pos ghosts)
-                               for init-ghost in (gethash pos initial-ghosts)
-                               maximize (- (cdr new-ghost) (cdr init-ghost)))))
-    (clrhash new-ghosts)
-    ; number of rounds it should be fine to do
-    (cl-loop with nskiped = (floor (- kill-limit ninitial) maxcollide)
-             for pos being the hash-key of ghosts 
-             do (cl-loop for ghost in (gethash pos ghosts)
-                         for init-ghost in (gethash pos initial-ghosts) 
-                         do (push (cons (car ghost)
-                                        (+ (cdr ghost) (* (- (cdr ghost) (cdr init-ghost)) nskiped )))
-                                  (gethash pos new-ghosts nil)))
-             finally do (cl-rotatef ghosts new-ghosts))
-    (cl-loop for pos being the hash-key of ghosts
-             do (message "%s" (gethash pos ghosts)))
-    ;; (cl-incf n (* (floor (- kill-limit ninitial) maxcollide) nloop))
-    ;; (cl-loop for nn from (1+ n) 
-    ;;          do (funcall move-them)
-    ;;          do (funcall kill-them)
-    ;;          do (funcall collide-them)
-    ;;          do (funcall kill-them)
-    ;;          if (= 0 nghost)
-    ;;          return nn)
-    ))
-
-;;Read data into a fresh *puz-scratch* buffer.
-;;kill limit 1000_000_000_000
-(puz-load "../data/everybody_codes_e2026_q10_p3.txt")
-(message "Solution for part 3 is = %S" (solve-part3))
 
 ;;; quest_10.el ends here
 
