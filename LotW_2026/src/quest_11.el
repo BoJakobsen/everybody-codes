@@ -13,7 +13,6 @@
 (require 'puz-helpers) ; REMEMBER this does not reload changes from the file
 (require 'cl-lib)
 
-
 ;; PART 1
 
 (defun puz-solve-part1 ()
@@ -45,21 +44,71 @@
                                             sum (cl-loop while fifo-front
                                                          for (center d) = (pop fifo-front)
                                                          if (= center endpoint)
-                                        ;do (message "END %s" d) 
                                                          return d
                                                          do (cl-loop for nab in (gethash center graph)
                                                                      unless (gethash nab seen)
-                                                                     do (progn (push (list nab (1+ d)) fifo-end)
+                                                                     do (progn (push (list nab (1+ d))
+                                                                                     fifo-end)
                                                                                (puthash nab t seen)))
                                                          (unless fifo-front
                                                            (setq fifo-front fifo-end)
                                                            (setq fifo-end nil))))))))
 
-
-
 ;;Read data into a fresh *puz-scratch* buffer.
 (puz-load "../data/everybody_codes_e2026_q11_p1.txt")
 (message "Solution for part 1 is = %S" (puz-solve-part1))
+
+;; PART 1 take 2,
+;; Split the BFS strain calc to a function.
+;; Better for read, and useful for part 2
+
+(defun puz-find-strain (graph)
+  (let* ((nnodes (length (map-keys graph)))
+         (fifo-front nil)
+         (fifo-end nil)
+         (seen (make-hash-table)))
+    (cl-loop for start from 1 to nnodes
+             sum (cl-loop for endpoint from 1 to nnodes
+                          ;; clean up for new BFS 
+                          do (clrhash seen)
+                          do (setq fifo-end nil)
+                          do (setq fifo-front (list (list start 0)))
+                          do (puthash start t seen)
+                          sum (cl-loop while fifo-front
+                                       for (center d) = (pop fifo-front)
+                                       if (= center endpoint)
+                                       return d
+                                       do (cl-loop for nab in (gethash center graph)
+                                                   unless (gethash nab seen)
+                                                   do (progn (push (list nab (1+ d))
+                                                                   fifo-end)
+                                                             (puthash nab t seen)))
+                                       (unless fifo-front
+                                         (setq fifo-front fifo-end)
+                                         (setq fifo-end nil)))))))
+
+(defun puz-solve-part1-take2 ()
+  (let* ((data (with-current-buffer "*puz-scratch*"
+                 (split-string (buffer-string) "\n"  t)))
+         (nnodes (string-to-number (car (split-string (seq-elt data 0) "[^0-9]+" t ))))
+         (graph (make-hash-table))
+         (cyc (lambda (x) (1+ (mod (1- x) nnodes))))
+         (initial-strain 0)); 
+    ;; Setup trivial connections
+    (cl-loop for k from 1 to nnodes
+             do (puthash k (list (funcall cyc (1- k)) (funcall cyc (1+ k))) graph))
+    (setq initial-strain (puz-find-strain graph))
+    ;; Add in additional connections
+    (cl-loop for n from 1 to (1- (length data))
+             for (x1 x2) = (mapcar #'string-to-number (split-string (seq-elt data n) " " t))
+             do (push x2 (gethash x1 graph))
+             do (push x1 (gethash x2 graph)))
+    (- initial-strain (puz-find-strain graph))))
+
+(puz-load "../data/everybody_codes_e2026_q11_p1.txt")
+(message "Solution for part 1 is = %S" (puz-solve-part1-take2))
+
+
 
 ;; PART 2
 
