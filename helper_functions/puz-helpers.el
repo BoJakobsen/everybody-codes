@@ -119,7 +119,7 @@ Any number of targets can be searched for."
   "Unbind every symbol whose name start with \"puz-\".
 Wipes both variable values and function definitions."
   (interactive)
-  (unload-feature 'aoc-functions t)
+  (unload-feature 'puz-helpers t)
   (let ((count 0))
     (mapatoms
      (lambda (sym)
