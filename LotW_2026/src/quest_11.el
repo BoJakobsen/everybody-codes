@@ -112,16 +112,52 @@
 
 ;; PART 2
 
-;;Read data into a fresh *puz-scratch* buffer.
-(puz-load "../data/everybody_codes_e2026_q11_p2.txt")
 
+
+(defun puz-copy-hash (h)
+  (let ((copy (copy-hash-table h)))
+    (maphash (lambda (k v) (puthash k (copy-sequence v) copy)) copy)
+    copy))
 
 (defun puz-solve-part2 ()
   (let* ((data (with-current-buffer "*puz-scratch*"
-                 (mapcar #'string-to-number (split-string (buffer-string) ","  t))))
-         )
-    nil))
+                 (split-string (buffer-string) "\n"  t)))
+         (nnodes (string-to-number (car (split-string (seq-elt data 0) "[^0-9]+" t ))))
+         (graph (make-hash-table))
+         (graph-copy (make-hash-table))
+         (cyc (lambda (x) (1+ (mod (1- x) nnodes))))
+         (initial-strain 0)); 
+    ;; Setup trivial connections
+    (cl-loop for k from 1 to nnodes
+             do (cl-loop for n from -3 to 3
+                         unless (= 0 n)
+                         do (push (funcall cyc (- k n))  (gethash k  graph nil))))
+    (setq initial-strain (puz-find-strain graph))
+    ;; Add in additional connections
+    (cl-loop for n from 1 to (1- (length data))
+             for (x1 x2) = (mapcar #'string-to-number (split-string (seq-elt data n) " " t))
+             do (push x2 (gethash x1 graph))
+             do (push x1 (gethash x2 graph)))
+    (setq graph-copy (puz-copy-hash graph)) ; copy the known graph
+    (- initial-strain (cl-loop for x1 from 1 to nnodes
+                               do (message "%s" x1)   
+                               minimize (cl-loop for x2 from x1 to nnodes
+                                        ;for graph = (puz-copy-hash graph-copy)
+                                                 ;for x2 = (funcall cyc (+ n x1 3))
+                                                 unless (memq x2 (gethash x1 graph))
+                                                 do (push x2 (gethash x1 graph))
+                                                 and do (push x1 (gethash x2 graph))
+                                                 and minimize (puz-find-strain graph)
+                                                 and do (pop  (gethash x1 graph))
+                                                 and do (pop  (gethash x2 graph))
+                                                 )))))
+(puz-solve-part2)
 
+
+
+
+;;Read data into a fresh *puz-scratch* buffer.
+(puz-load "../data/everybody_codes_e2026_q11_p2.txt")
 (message "Solution for part 2 is = %S" (puz-solve-part2))
 
 ;; PART 3
