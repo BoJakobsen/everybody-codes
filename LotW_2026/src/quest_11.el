@@ -136,6 +136,7 @@
              for (x1 x2) = (mapcar #'string-to-number (split-string (seq-elt data n) " " t))
              do (push x2 (gethash x1 graph))
              do (push x1 (gethash x2 graph)))
+    ;;(message "%s" (puz-find-strain graph))
     (setq graph-copy (puz-copy-hash graph)) ; copy the known graph
     (- initial-strain (cl-loop for x1 from 1 to nnodes
                                do (message "%s" x1)   
@@ -185,28 +186,46 @@
          (cyc (lambda (x) (1+ (mod (1- x) nnodes))))
          (initial-strain 0)
          (shortest-dists nil)
-         ; index function into the vector 
+         ;; index function into the vector (a bit of a couting game)
          (idx (lambda (a b) (when (> b a) (cl-rotatef a b))  (+ (/ (* (+ nnodes (- nnodes b -2)) (1- b)) 2) (- a b))))
          (shortest-dist (lambda (a b) (aref shortest-dists (funcall idx a b))))
-         ); 
+         (update-dists (lambda (dists x1 x2)
+                         (cl-loop for s from 1 to nnodes
+                                  do (cl-loop for e from s to nnodes
+                                              do (aset dists (funcall idx s e)
+                                                       (min (funcall shortest-dist s e)
+                                                            (+ (funcall shortest-dist s x1)
+                                                               1
+                                                               (funcall shortest-dist x2 e))
+                                                            (+ (funcall shortest-dist s x2)
+                                                               1
+                                                               (funcall shortest-dist x1 e))
+                                                            ))))))) 
     ;; Setup trivial connections 
     (cl-loop for k from 1 to nnodes
              do (cl-loop for n from -3 to 3
                          unless (= 0 n)
                          do (push (funcall cyc (- k n))  (gethash k  graph nil))))
-    ;; generate vector representation of shortest distances
-    ;; In principle we only need half this matrix
-    (setq shortest-dists  (vconcat (cl-loop for s from 1 to nnodes
-             append (cl-loop for e from s to nnodes
-                              collect (puz-find-min-distance-BFS graph e s)))))
-    ;; strain is now easily calculated
-    (setq initial-strain (seq-reduce #'+ shortest-dists 0))
-    ))
+    (setq initial-strain (puz-find-strain graph))
+    ;; generate vector representation of shortest distances (lower half matrix)
+    (setq shortest-dists
+          (vconcat
+           (cl-loop for s from 1 to nnodes
+                    append (cl-loop for e from s to nnodes
+                                    collect (puz-find-min-distance-BFS graph e s)))))
+    ;; add the additional edge
+    (cl-loop for n from 1 to (1- (length data))
+             for (x1 x2) = (mapcar #'string-to-number (split-string (seq-elt data n) " " t))
+             do (funcall update-dists shortest-dists x1 x2))
+    ;; Optimization without BFS (much faster)
+    (- initial-strain (cl-loop for x1 from 1 to (1- nnodes)
+                               minimize (cl-loop for x2 from (1+ x1) to nnodes
+                                                 for dists = (copy-sequence shortest-dists)
+                                                 do (funcall update-dists dists x1 x2) 
+                                                 minimize (* 2 (seq-reduce #'+ dists 0)))))))
 
-(puz-solve-part2-take2)
-
-(puz-load "../data/everybody_codes_e2026_q11_p2_test.txt")
-(message "Solution for part 2 is = %S" (puz-solve-part2))
+(puz-load "../data/everybody_codes_e2026_q11_p2.txt")
+(message "Solution for part 2 is = %S" (puz-solve-part2-take2))
 
 
 
