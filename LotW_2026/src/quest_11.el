@@ -112,8 +112,6 @@
 
 ;; PART 2
 
-
-
 (defun puz-copy-hash (h)
   (let ((copy (copy-hash-table h)))
     (maphash (lambda (k v) (puthash k (copy-sequence v) copy)) copy)
@@ -151,14 +149,66 @@
                                                  and do (pop  (gethash x1 graph))
                                                  and do (pop  (gethash x2 graph))
                                                  )))))
-(puz-solve-part2)
-
-
-
 
 ;;Read data into a fresh *puz-scratch* buffer.
 (puz-load "../data/everybody_codes_e2026_q11_p2.txt")
 (message "Solution for part 2 is = %S" (puz-solve-part2))
+
+
+;; Re do structure for faster part 2 and 3
+
+(defun puz-find-min-distance-BFS (graph start endpoint)
+  (let* ((nnodes (length (map-keys graph)))
+         (fifo-front (list (list start 0)))
+         (fifo-end nil)
+         (seen (make-hash-table)))
+    (puthash start t seen)
+    (cl-loop while fifo-front
+                 for (center d) = (pop fifo-front)
+                 if (= center endpoint)
+                 return d
+                 do (cl-loop for nab in (gethash center graph)
+                             unless (gethash nab seen)
+                             do (progn (push (list nab (1+ d))
+                                             fifo-end)
+                                       (puthash nab t seen)))
+                 (unless fifo-front
+                   (setq fifo-front fifo-end)
+                   (setq fifo-end nil)))))
+
+(defun puz-solve-part2-take2 ()
+  (let* ((data (with-current-buffer "*puz-scratch*"
+                 (split-string (buffer-string) "\n"  t)))
+         (nnodes (string-to-number (car (split-string (seq-elt data 0) "[^0-9]+" t ))))
+         (graph (make-hash-table))
+         (graph-copy (make-hash-table))
+         (cyc (lambda (x) (1+ (mod (1- x) nnodes))))
+         (initial-strain 0)
+         (shortest-dists nil)
+         ; index function into the vector 
+         (idx (lambda (a b) (when (> b a) (cl-rotatef a b))  (+ (/ (* (+ nnodes (- nnodes b -2)) (1- b)) 2) (- a b))))
+         (shortest-dist (lambda (a b) (aref shortest-dists (funcall idx a b))))
+         ); 
+    ;; Setup trivial connections 
+    (cl-loop for k from 1 to nnodes
+             do (cl-loop for n from -3 to 3
+                         unless (= 0 n)
+                         do (push (funcall cyc (- k n))  (gethash k  graph nil))))
+    ;; generate vector representation of shortest distances
+    ;; In principle we only need half this matrix
+    (setq shortest-dists  (vconcat (cl-loop for s from 1 to nnodes
+             append (cl-loop for e from s to nnodes
+                              collect (puz-find-min-distance-BFS graph e s)))))
+    ;; strain is now easily calculated
+    (setq initial-strain (seq-reduce #'+ shortest-dists 0))
+    ))
+
+(puz-solve-part2-take2)
+
+(puz-load "../data/everybody_codes_e2026_q11_p2_test.txt")
+(message "Solution for part 2 is = %S" (puz-solve-part2))
+
+
 
 ;; PART 3
 
