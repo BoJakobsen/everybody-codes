@@ -176,7 +176,7 @@
                  (unless fifo-front
                    (setq fifo-front fifo-end)
                    (setq fifo-end nil)))))
-
+;; nice optimization, a bit heavy on the use of lambda. 
 (defun puz-solve-part2-take2 ()
   (let* ((data (with-current-buffer "*puz-scratch*"
                  (split-string (buffer-string) "\n"  t)))
@@ -188,18 +188,18 @@
          (shortest-dists nil)
          ;; index function into the vector (a bit of a couting game)
          (idx (lambda (a b) (when (> b a) (cl-rotatef a b))  (+ (/ (* (+ nnodes (- nnodes b -2)) (1- b)) 2) (- a b))))
-         (shortest-dist (lambda (a b) (aref shortest-dists (funcall idx a b))))
+         (shortest-dist (lambda (dists a b) (aref dists (funcall idx a b))))
          (update-dists (lambda (dists x1 x2)
                          (cl-loop for s from 1 to nnodes
                                   do (cl-loop for e from s to nnodes
                                               do (aset dists (funcall idx s e)
-                                                       (min (funcall shortest-dist s e)
-                                                            (+ (funcall shortest-dist s x1)
+                                                       (min (funcall shortest-dist dists s e)
+                                                            (+ (funcall shortest-dist dists s x1)
                                                                1
-                                                               (funcall shortest-dist x2 e))
-                                                            (+ (funcall shortest-dist s x2)
+                                                               (funcall shortest-dist dists x2 e))
+                                                            (+ (funcall shortest-dist dists s x2)
                                                                1
-                                                               (funcall shortest-dist x1 e))
+                                                               (funcall shortest-dist dists x1 e))
                                                             ))))))) 
     ;; Setup trivial connections 
     (cl-loop for k from 1 to nnodes
@@ -227,20 +227,76 @@
 (puz-load "../data/everybody_codes_e2026_q11_p2.txt")
 (message "Solution for part 2 is = %S" (puz-solve-part2-take2))
 
-
-
 ;; PART 3
-
-;;Read data into a fresh *puz-scratch* buffer.
-(puz-load "../data/everybody_codes_e2026_q11_p3.txt")
 
 (defun puz-solve-part3 ()
   (let* ((data (with-current-buffer "*puz-scratch*"
-                 (mapcar #'string-to-number (split-string (buffer-string) ","  t))))
-         )
-    nil))
+                 (split-string (buffer-string) "\n"  t)))
+         (nnodes (string-to-number (car (split-string (seq-elt data 0) "[^0-9]+" t ))))
+         (graph (make-hash-table))
+         (graph-copy (make-hash-table))
+         (cyc (lambda (x) (1+ (mod (1- x) nnodes))))
+         (initial-strain 0)
+         (shortest-dists nil)
+         ;; index function into the vector (a bit of a couting game)
+         (idx (lambda (a b) (when (> b a) (cl-rotatef a b))  (+ (/ (* (+ nnodes (- nnodes b -2)) (1- b)) 2) (- a b))))
+         (shortest-dist (lambda (dists a b) (aref dists (funcall idx a b))))
+         (update-dists (lambda (dists x1 x2)
+                         (cl-loop for s from 1 to nnodes
+                                  do (cl-loop for e from s to nnodes
+                                              do (aset dists (funcall idx s e)
+                                                       (min (funcall shortest-dist dists s e)
+                                                            (+ (funcall shortest-dist dists s x1)
+                                                               1
+                                                               (funcall shortest-dist dists x2 e))
+                                                            (+ (funcall shortest-dist dists s x2)
+                                                               1
+                                                               (funcall shortest-dist dists x1 e))))))
+                         dists))) 
+    ;; Setup trivial connections 
+    (cl-loop for k from 1 to nnodes
+             do (cl-loop for n from -3 to 3
+                         unless (= 0 n)
+                         do (push (funcall cyc (- k n))  (gethash k  graph nil))))
+    (setq initial-strain (puz-find-strain graph))
+    (message "Initial strain %s" initial-strain)
+    ;; generate vector representation of shortest distances (lower half matrix)
+    (setq shortest-dists
+          (vconcat
+           (cl-loop for s from 1 to nnodes
+                    append (cl-loop for e from s to nnodes
+                                    collect (puz-find-min-distance-BFS graph e s)))))
+    ;; add the additional edge
+    (cl-loop for n from 1 to (1- (length data))
+             for (x1 x2) = (mapcar #'string-to-number (split-string (seq-elt data n) " " t))
+             do (funcall update-dists shortest-dists x1 x2))
+    ;; Optimization 
+    (- initial-strain
+       (cl-loop for n from 1 below (/ nnodes 8)
+                for crys-poss = (mapcar (lambda (c) (+ n c)) (number-sequence 1 nnodes (/ nnodes 8)))
+                for ndist = (copy-sequence shortest-dists)
+                do (message "%s" crys-poss)
+                minimize (cl-labels ((iterate-it (nums dists order)
+                                       (if (not nums)
+                                           (progn
+                                             ;(message " %s %s" order (* 2 (seq-reduce #'+ dists 0)))
+                                             (* 2 (seq-reduce #'+ dists 0)))
+                                         (cl-loop with start-num = (car nums)
+                                                  with end-nums = (cdr nums)
+                                                  for end-num in end-nums
+                                                  for new-order = (copy-sequence order)
+                                                  do (push (list start-num end-num) new-order)
+                                                  for new-dists = (copy-sequence dists)
+                                                  for new-dists = (funcall update-dists new-dists start-num end-num)
+                                                  for new-nums = (delq end-num (copy-sequence end-nums))
+                                                  minimize (iterate-it new-nums new-dists new-order)))))
+                           (iterate-it crys-poss ndist nil)) into minval
+                do (message "min %s" minval)
+                and finally return minval))))
 
 
+;;Read data into a fresh *puz-scratch* buffer.
+(puz-load "../data/everybody_codes_e2026_q11_p3.txt")
 (message "Solution for part 3 is = %S" (puz-solve-part3))
 
 ;;; quest_11.el ends here
