@@ -187,7 +187,7 @@
          (cyc (lambda (x) (1+ (mod (1- x) nnodes))))
          (initial-strain 0)
          (shortest-dists nil)
-         ;; index function into the vector (a bit of a couting game)
+         ;; index function into the vector (a bit of a counting game)
          (idx (lambda (a b) (when (> b a) (cl-rotatef a b))  (+ (/ (* (+ nnodes (- nnodes b -2)) (1- b)) 2) (- a b))))
          (shortest-dist (lambda (dists a b) (aref dists (funcall idx a b))))
          (update-dists (lambda (dists x1 x2)
@@ -314,7 +314,7 @@
          (initial-strain nil)
          (shortest-dists (make-vector (/ (* (+ nnodes 1) nnodes) 2)  (* 10 nnodes))) ;; vector of shortest distances between nodes, initial large number
          ;; Index function into the shortest dist vector (a bit of a couting game)
-         ;; Formular is for a >= b hence the rotate. An more standard layout and formular exists, but to much work to clean that up. 
+         ;; Formula is for a >= b hence the rotate. An more standard layout and formular exists, but to much work to clean that up. 
          (idx (lambda (a b) (when (> b a) (cl-rotatef a b))  (+ (/ (* (+ nnodes (- nnodes b -2)) (1- b)) 2) (- a b))))
          ;; Returns the shortest dist between a and b using vector dists
          (shortest-dist (lambda (dists a b) (aref dists (funcall idx a b))))
@@ -322,26 +322,29 @@
          ;; in-place mutates dists, but also returns the modified dists.
          (nupdate-dists (lambda (dists x1 x2)
                           (cl-loop for s from 1 to nnodes
-                                   do (cl-loop for e from s to nnodes
+                                   do (cl-loop with dsx1 = (funcall shortest-dist dists s x1)
+                                               with dsx2 = (funcall shortest-dist dists s x2)
+                                               for e from s to nnodes
                                                do (aset dists (funcall idx s e)
-                                                        ;; shortest dist s -> e is smalles of
+                                                        ;; shortest dist s -> e is smallest of
                                                         ;; s -> e, s -> x1 -> x2-> e, s-> x2 -> x1-> e
                                                         (min (funcall shortest-dist dists s e)
-                                                             (+ (funcall shortest-dist dists s x1)
+                                                             (+ dsx1
                                                                 1
                                                                 (funcall shortest-dist dists x2 e))
-                                                             (+ (funcall shortest-dist dists s x2)
+                                                             (+ dsx2
                                                                 1
                                                                 (funcall shortest-dist dists x1 e))))))
                           dists))
          (calc-strain (lambda (dists) (* 2 (seq-reduce #'+ dists 0))))) 
+
     ;; Setup trivial connections
     (cl-loop for k from 1 to nnodes
              do (aset shortest-dists (funcall idx k k) 0)) ; all has distance 0 to itself
     (cl-loop for k from 1 to nnodes   ;; all nodes are connected to the 6 nearest nodes. 
              do (cl-loop for n from -3 to 3
                          unless (= 0 n)
-                         do (funcall nupdate-dists shortest-dists (funcall cyc k) (funcall cyc (- k n)))))
+                         do (funcall nupdate-dists shortest-dists k (funcall cyc (- k n)))))
     (setq initial-strain (funcall calc-strain shortest-dists))
     (message "Initial strain %s" initial-strain)
 
@@ -349,24 +352,22 @@
     (cl-loop for n from 1 to (1- (length data))
              for (x1 x2) = (mapcar #'string-to-number (split-string (seq-elt data n) " " t))
              do (funcall nupdate-dists shortest-dists x1 x2))
-    ;; ;; Optimization of connecting 8 nodes equally spaced, 2 and 2
+
+    ;; Optimization of connecting 8 nodes equally spaced, and connected "2 and 2"
     (- initial-strain
        (cl-loop for n from 0 below (/ nnodes 8) ; loop possible positions of the first node  
-                for crys-poss = (mapcar (lambda (c) (+ n c)) (number-sequence 1 nnodes (/ nnodes 8))) ; list of the 8 equally spaced nodes 
+                for crys-poss = (number-sequence (1+ n) nnodes (/ nnodes 8)) ; list of the 8 equally spaced nodes 
                 do (message "%s" crys-poss) ;; still a bit slow, so a progress message is fine.
                 minimize (cl-labels ((iterate-it (nums dists)
                                        (if (not nums) ; base case all 4 pairs are in 
                                            (funcall calc-strain dists)
                                          (cl-loop with start-num = (car nums) ; always that the first as start
-                                                  with end-nums = (cdr nums)  ; end is selected ammon the rest
+                                                  with end-nums = (cdr nums)  ; end is selected among the rest
                                                   for end-num in end-nums     ; loop end numbers
-                                                  for new-dists = (copy-sequence dists) ; copy before iterating 
-                                                  for new-dists = (funcall nupdate-dists new-dists start-num end-num)
-                                                  for new-nums = (delq end-num (copy-sequence end-nums))
+                                                  for new-dists = (funcall nupdate-dists (copy-sequence dists) start-num end-num) ; new dists vector (copy)
+                                                  for new-nums = (remq end-num end-nums) ; non-destructive (shares structure).
                                                   minimize (iterate-it new-nums new-dists)))))
-                           (iterate-it crys-poss shortest-dists)) 
-                ))
-    ))
+                           (iterate-it crys-poss shortest-dists))))))
 
 
 ;;Read data into a fresh *puz-scratch* buffer.
