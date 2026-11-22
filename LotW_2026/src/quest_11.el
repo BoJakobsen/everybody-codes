@@ -272,7 +272,7 @@
              do (funcall update-dists shortest-dists x1 x2))
     ;; Optimization 
     (- initial-strain
-       (cl-loop for n from 1 below (/ nnodes 8)
+       (cl-loop for n from 0 below (/ nnodes 8)
                 for crys-poss = (mapcar (lambda (c) (+ n c)) (number-sequence 1 nnodes (/ nnodes 8)))
                 for ndist = (copy-sequence shortest-dists)
                 do (message "%s" crys-poss)
