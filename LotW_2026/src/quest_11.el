@@ -176,6 +176,7 @@
                  (unless fifo-front
                    (setq fifo-front fifo-end)
                    (setq fifo-end nil)))))
+
 ;; nice optimization, a bit heavy on the use of lambda. 
 (defun puz-solve-part2-take2 ()
   (let* ((data (with-current-buffer "*puz-scratch*"
@@ -298,6 +299,84 @@
 ;;Read data into a fresh *puz-scratch* buffer.
 (puz-load "../data/everybody_codes_e2026_q11_p3.txt")
 (message "Solution for part 3 is = %S" (puz-solve-part3))
+
+
+
+
+
+;; PART 3, Cleaned up version
+
+(defun puz-solve-part3-cleaner ()
+  (let* ((data (with-current-buffer "*puz-scratch*"
+                 (split-string (buffer-string) "\n"  t)))
+         (nnodes (string-to-number (car (split-string (seq-elt data 0) "[^0-9]+" t ))))
+         (cyc (lambda (x) (1+ (mod (1- x) nnodes)))) ;; map node numbers to range 1 -> nnodes
+         (initial-strain nil)
+         (shortest-dists (make-vector (/ (* (+ nnodes 1) nnodes) 2)  (* 10 nnodes))) ;; vector of shortest distances between nodes, initial large number
+         ;; Index function into the shortest dist vector (a bit of a couting game)
+         ;; Formular is for a >= b hence the rotate. An more standard layout and formular exists, but to much work to clean that up. 
+         (idx (lambda (a b) (when (> b a) (cl-rotatef a b))  (+ (/ (* (+ nnodes (- nnodes b -2)) (1- b)) 2) (- a b))))
+         ;; Returns the shortest dist between a and b using vector dists
+         (shortest-dist (lambda (dists a b) (aref dists (funcall idx a b))))
+         ;; Adds an edge between x1 and x2 and updates as shortest distances.
+         ;; in-place mutates dists, but also returns the modified dists.
+         (nupdate-dists (lambda (dists x1 x2)
+                          (cl-loop for s from 1 to nnodes
+                                   do (cl-loop for e from s to nnodes
+                                               do (aset dists (funcall idx s e)
+                                                        ;; shortest dist s -> e is smalles of
+                                                        ;; s -> e, s -> x1 -> x2-> e, s-> x2 -> x1-> e
+                                                        (min (funcall shortest-dist dists s e)
+                                                             (+ (funcall shortest-dist dists s x1)
+                                                                1
+                                                                (funcall shortest-dist dists x2 e))
+                                                             (+ (funcall shortest-dist dists s x2)
+                                                                1
+                                                                (funcall shortest-dist dists x1 e))))))
+                          dists))
+         (calc-strain (lambda (dists) (* 2 (seq-reduce #'+ dists 0))))) 
+    ;; Setup trivial connections
+    (cl-loop for k from 1 to nnodes
+             do (aset shortest-dists (funcall idx k k) 0)) ; all has distance 0 to itself
+    (cl-loop for k from 1 to nnodes   ;; all nodes are connected to the 6 nearest nodes. 
+             do (cl-loop for n from -3 to 3
+                         unless (= 0 n)
+                         do (funcall nupdate-dists shortest-dists (funcall cyc k) (funcall cyc (- k n)))))
+    (setq initial-strain (funcall calc-strain shortest-dists))
+    (message "Initial strain %s" initial-strain)
+
+    ;; add the additional edge from the data file.
+    (cl-loop for n from 1 to (1- (length data))
+             for (x1 x2) = (mapcar #'string-to-number (split-string (seq-elt data n) " " t))
+             do (funcall nupdate-dists shortest-dists x1 x2))
+    ;; ;; Optimization of connecting 8 nodes equally spaced, 2 and 2
+    (- initial-strain
+       (cl-loop for n from 0 below (/ nnodes 8)
+                for crys-poss = (mapcar (lambda (c) (+ n c)) (number-sequence 1 nnodes (/ nnodes 8)))
+                for ndist = (copy-sequence shortest-dists)
+                do (message "%s" crys-poss)
+                minimize (cl-labels ((iterate-it (nums dists)
+                                       (if (not nums) ; base case all 4 pairs are in 
+                                           (funcall calc-strain dists)
+                                         (cl-loop with start-num = (car nums) ; always that the first as start
+                                                  with end-nums = (cdr nums)  ; end is selected ammon the rest
+                                                  for end-num in end-nums
+                                                  for new-dists = (copy-sequence dists)
+                                                  for new-dists = (funcall nupdate-dists new-dists start-num end-num)
+                                                  for new-nums = (delq end-num (copy-sequence end-nums))
+                                                  minimize (iterate-it new-nums new-dists)))))
+                           (iterate-it crys-poss ndist)) into minval
+                do (message "min %s" minval)
+                and finally return minval))
+    
+    ))
+
+
+;;Read data into a fresh *puz-scratch* buffer.
+(puz-load "../data/everybody_codes_e2026_q11_p3.txt")
+(message "Solution for part 3 is = %S" (puz-solve-part3-cleaner))
+
+
 
 ;;; quest_11.el ends here
 
