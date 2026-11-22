@@ -351,24 +351,21 @@
              do (funcall nupdate-dists shortest-dists x1 x2))
     ;; ;; Optimization of connecting 8 nodes equally spaced, 2 and 2
     (- initial-strain
-       (cl-loop for n from 0 below (/ nnodes 8)
-                for crys-poss = (mapcar (lambda (c) (+ n c)) (number-sequence 1 nnodes (/ nnodes 8)))
-                for ndist = (copy-sequence shortest-dists)
-                do (message "%s" crys-poss)
+       (cl-loop for n from 0 below (/ nnodes 8) ; loop possible positions of the first node  
+                for crys-poss = (mapcar (lambda (c) (+ n c)) (number-sequence 1 nnodes (/ nnodes 8))) ; list of the 8 equally spaced nodes 
+                do (message "%s" crys-poss) ;; still a bit slow, so a progress message is fine.
                 minimize (cl-labels ((iterate-it (nums dists)
                                        (if (not nums) ; base case all 4 pairs are in 
                                            (funcall calc-strain dists)
                                          (cl-loop with start-num = (car nums) ; always that the first as start
                                                   with end-nums = (cdr nums)  ; end is selected ammon the rest
-                                                  for end-num in end-nums
-                                                  for new-dists = (copy-sequence dists)
+                                                  for end-num in end-nums     ; loop end numbers
+                                                  for new-dists = (copy-sequence dists) ; copy before iterating 
                                                   for new-dists = (funcall nupdate-dists new-dists start-num end-num)
                                                   for new-nums = (delq end-num (copy-sequence end-nums))
                                                   minimize (iterate-it new-nums new-dists)))))
-                           (iterate-it crys-poss ndist)) into minval
-                do (message "min %s" minval)
-                and finally return minval))
-    
+                           (iterate-it crys-poss shortest-dists)) 
+                ))
     ))
 
 
