@@ -63,10 +63,34 @@ Returns the vectorized grid."
       (message "Grid size. n-cols: %d, n-rows: %d" puz-grid-n-cols puz-grid-n-rows)
       (apply #'vconcat (append (push padding padded) (list padding))))))
 
+
+(defun puz-grid-offsets-8nab ()
+  (setq puz-grid-offsets
+        (list (- -1 puz-grid-stride) (- puz-grid-stride)   (- 1 puz-grid-stride)
+              (- 1)                                        (+ 1)
+              (+ puz-grid-stride -1) (+ puz-grid-stride)   (+ puz-grid-stride 1 ))))
+
+
+(defun puz-grid-offsets-4nab ()
+  (setq puz-grid-offsets
+        (list                      (- puz-grid-stride)
+              (- 1)                                        (+ 1)
+                                   (+ puz-grid-stride)   )))
+
+
+
 (defun puz-grid-vector-to-pos (col row)
   "COL and ROW is counted from 0,0 on the grid
 A boundary padding of 1 char is assumed."
   (+  puz-grid-n-cols 2 (1+ col) (* row (+ 2 puz-grid-n-cols))))
+
+(defun puz-grid-vector-pos-to-coord (pos)
+  "POS is position in vector rep of grid.
+A boundary padding of 1 char is assumed.
+return a (cons col row) where each is counted from 0,0 on the actual grid"
+  (let* ((row (1- (floor pos (+ 2 puz-grid-n-cols))))
+         (col (1- (mod pos (+ 2 puz-grid-n-cols)))))
+  (cons col row)))
 
 (defun puz-grid-vector-find-nab (gridv pos &rest target)
   "Find TARGETs around POS in GRIDV vectorized grid
