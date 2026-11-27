@@ -19,8 +19,6 @@
 ;;Read data into a fresh *puz-scratch* buffer.
 (puz-load "../data/everybody_codes_e2026_q12_p1.txt")
 
-
-
 (defun puz-flood-fill (data start to-fill fill-marker)
   "Flood fill type algorithm on DATA (vector) starting at START-POINTS (list)
 fills TO-FILL blocks with FILL-MARKER."
@@ -116,9 +114,17 @@ fills TO-FILL blocks with FILL-MARKER."
 (message "Solution for part 2 is = %S" (puz-solve-part2))
 
 ;; PART 3
-
-(defun puz-solve-part3 ()
-  (let* ((data (puz-grid-to-vec-init ".")))
+(defun puz-solve-all-parts ()
+  (let* ((data (puz-grid-to-vec-init "."))
+         (test-col (lambda (col1 col2 row points)
+                     (cl-loop for colx from col1 to col2
+                              always (member (cons colx row) points)) ) )
+         (fill-col (lambda (col1 col2 row)
+                     (cl-loop for colx from col1 to col2
+                              do (aset data (puz-grid-vector-to-pos colx row) ?a))))
+         (fill-row (lambda (col row1 row2)
+                     (cl-loop for rowx from row1 to row2
+                              do (aset data (puz-grid-vector-to-pos col rowx) ?a)))))
     (puz-grid-offsets-4nab); update offsets for only 4 nab
     (cl-loop while (seq-contains-p data ?#)
              sum (cl-loop for row from 0 below puz-grid-n-rows
@@ -130,29 +136,35 @@ fills TO-FILL blocks with FILL-MARKER."
                                                      (col1 (apply #'min (mapcar #'car points )))
                                                      (col2 (apply #'max (mapcar #'car points )))
                                                      (row1 (apply #'min (mapcar #'cdr points )))
-                                                     (row2 (apply #'max (mapcar #'cdr points )))
-                                                     (dcol (abs (- col1 col2)))
-                                                     (drow (abs (- row1 row2))))
-                                                (if (> dcol drow)  ;colon dimension is largest
+                                                     (row2 (apply #'max (mapcar #'cdr points ))))
+                                                (if (> (abs (- col1 col2))  (abs (- row1 row2)))
                                                     (progn
+                                                      ;; test if all points on the line are #
                                                       (if (cl-loop for colx from col1 to col2
-                                                                   always (member (cons colx row1) points))
-                                                          (cl-loop for colx from col1 to col2
-                                                                   do (aset data (puz-grid-vector-to-pos colx row1) ?a))
-                                                        (cl-loop for colx from col1 to col2
-                                                                 do (aset data (puz-grid-vector-to-pos colx row2) ?a))))
+                                                                   always (member (cons colx row) points))
+                                                          (funcall fill-col col1 col2 row1)
+                                                        (funcall fill-col col1 col2 row2)))
                                                   (if (cl-loop for rowx from row1 to row2
-                                                                   always (member (cons col1 rowx) points))
-                                                      (cl-loop for rowx from row1 to row2
-                                                               do (aset data (puz-grid-vector-to-pos col1 rowx) ?a))
-                                                    (cl-loop for rowx from row1 to row2
-                                                             do (aset data (puz-grid-vector-to-pos col2 rowx) ?a))))))))))
+                                                               always (member (cons col1 rowx) points))
+                                                      (funcall fill-row col1 row1 row2 )
+                                                    (funcall fill-row col2 row1 row2 )))))))))
+
+;; this solutions nicely solves all tree parts
 
 
 ;;Read data into a fresh *puz-scratch* buffer.
-(puz-load "../data/everybody_codes_e2026_q12_p3.txt")
+(puz-load "../data/everybody_codes_e2026_q12_p1.txt")
+(message "Solution for part 1 is = %S" (puz-solve-all-parts))
 
-(message "Solution for part 3 is = %S" (puz-solve-part3))
+;;Read data into a fresh *puz-scratch* buffer.
+(puz-load "../data/everybody_codes_e2026_q12_p2.txt")
+(message "Solution for part 2 is = %S" (puz-solve-all-parts))
+
+;;Read data into a fresh *puz-scratch* buffer.
+(puz-load "../data/everybody_codes_e2026_q12_p3.txt")
+(message "Solution for part 3 is = %S" (puz-solve-all-parts))
+
+
 
 ;;; quest_12.el ends here
 
