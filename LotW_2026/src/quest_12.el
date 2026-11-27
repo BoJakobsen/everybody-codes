@@ -116,9 +116,6 @@ fills TO-FILL blocks with FILL-MARKER."
 ;; PART 3
 (defun puz-solve-all-parts ()
   (let* ((data (puz-grid-to-vec-init "."))
-         (test-col (lambda (col1 col2 row points)
-                     (cl-loop for colx from col1 to col2
-                              always (member (cons colx row) points)) ) )
          (fill-col (lambda (col1 col2 row)
                      (cl-loop for colx from col1 to col2
                               do (aset data (puz-grid-vector-to-pos colx row) ?a))))
@@ -141,13 +138,13 @@ fills TO-FILL blocks with FILL-MARKER."
                                                     (progn
                                                       ;; test if all points on the line are #
                                                       (if (cl-loop for colx from col1 to col2
-                                                                   always (member (cons colx row) points))
+                                                                   always (member (cons colx row1) points))
                                                           (funcall fill-col col1 col2 row1)
                                                         (funcall fill-col col1 col2 row2)))
                                                   (if (cl-loop for rowx from row1 to row2
                                                                always (member (cons col1 rowx) points))
                                                       (funcall fill-row col1 row1 row2 )
-                                                    (funcall fill-row col2 row1 row2 )))))))))
+                                                     (funcall fill-row col2 row1 row2 )))))))))
 
 ;; this solutions nicely solves all tree parts
 
