@@ -83,35 +83,31 @@ fills TO-FILL blocks with FILL-MARKER."
 (defun puz-solve-part2 ()
   (let* ((data (puz-grid-to-vec-init ".")))
     (puz-grid-offsets-4nab); update offsets for only 4 nab
-    (cl-loop for row from 0 below puz-grid-n-rows
-             sum (cl-loop for col from 0 below puz-grid-n-cols
-                         for pos = (puz-grid-vector-to-pos col row)
-                         if (eq (aref data pos) ?#) ; finds upper left corner
-                         count t 
-                         and do (let* ((points (puz-flood-fill2 data pos ?# ))
-                                   (col1 (apply #'min (mapcar #'car points )))
-                                   (col2 (apply #'max (mapcar #'car points )))
-                                   (row1 (apply #'min (mapcar #'cdr points )))
-                                   (row2 (apply #'max (mapcar #'cdr points )))
-                                   (dcol (abs (- col1 col2)))
-                                   (drow (abs (- row1 row2)))
-                                   )
-                              (if (> dcol drow)  ;colon dimension is largest
-                                  (progn
-                                    (if (and (member (cons col1 row1) points) (member (cons col2 row1) points))
-                                        (cl-loop for colx from col1 to col2
-                                                 do (aset data (puz-grid-vector-to-pos colx row1) ?a))
-                                      (cl-loop for colx from col1 to col2
-                                               do (aset data (puz-grid-vector-to-pos colx row2) ?a))))
-                                (if (and (member (cons col1 row1) points) (member (cons col1 row2) points))
-                                    (cl-loop for rowx from row1 to row2
-                                             do (aset data (puz-grid-vector-to-pos col1 rowx) ?a))
-                                  (cl-loop for rowx from row1 to row2
-                                           do (aset data (puz-grid-vector-to-pos col2 rowx) ?a)))
-                                ))
-                         ))
-    (message " still there %s" )   
-    ))
+    (cl-loop while (seq-contains-p data ?#)
+             sum (cl-loop for row from 0 below puz-grid-n-rows
+                          sum (cl-loop for col from 0 below puz-grid-n-cols
+                                       for pos = (puz-grid-vector-to-pos col row)
+                                       if (eq (aref data pos) ?#) ; finds upper left corner
+                                       count t
+                                       and do (let* ((points (puz-flood-fill2 data pos ?# ))
+                                                     (col1 (apply #'min (mapcar #'car points )))
+                                                     (col2 (apply #'max (mapcar #'car points )))
+                                                     (row1 (apply #'min (mapcar #'cdr points )))
+                                                     (row2 (apply #'max (mapcar #'cdr points )))
+                                                     (dcol (abs (- col1 col2)))
+                                                     (drow (abs (- row1 row2))))
+                                                (if (> dcol drow)  ;colon dimension is largest
+                                                    (progn
+                                                      (if (and (member (cons col1 row1) points) (member (cons col2 row1) points))
+                                                          (cl-loop for colx from col1 to col2
+                                                                   do (aset data (puz-grid-vector-to-pos colx row1) ?a))
+                                                        (cl-loop for colx from col1 to col2
+                                                                 do (aset data (puz-grid-vector-to-pos colx row2) ?a))))
+                                                  (if (and (member (cons col1 row1) points) (member (cons col1 row2) points))
+                                                      (cl-loop for rowx from row1 to row2
+                                                               do (aset data (puz-grid-vector-to-pos col1 rowx) ?a))
+                                                    (cl-loop for rowx from row1 to row2
+                                                             do (aset data (puz-grid-vector-to-pos col2 rowx) ?a))))))))))
 
 
 
