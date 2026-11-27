@@ -47,21 +47,21 @@
 
 (defun puz-search-tree2 (tree start target)
   (let ((seen (make-hash-table :test 'equal))
-    (fifo-front (list start))
-    (fifo-end nil))
+        (fifo-front (list start))
+        (fifo-end nil))
     (while (and fifo-front (not (member target fifo-front))
-              (not (member target fifo-end)))
-    (let ((ing (pop fifo-front)))
-      (puthash ing t seen)
-      (cl-loop for new-ing in (cdr (assoc ing tree))
-               unless (gethash new-ing seen)
-               do (push new-ing fifo-end))
-      (unless fifo-front
-        (setq fifo-front fifo-end)
-        (setq fifo-end nil))))
-  (if (or (member target fifo-front)
-              (mamber target fifo-end))
-      t)))
+                (not (member target fifo-end)))
+      (let ((ing (pop fifo-front)))
+        (puthash ing t seen)
+        (cl-loop for new-ing in (cdr (assoc ing tree))
+                 unless (gethash new-ing seen)
+                 do (push new-ing fifo-end))
+        (unless fifo-front
+          (setq fifo-front fifo-end)
+          (setq fifo-end nil))))
+    (if (or (member target fifo-front)
+            (member target fifo-end))
+        t)))
 
 (defun solve-part2  ()
   (let* ((data (with-current-buffer "*puz-scratch*"
@@ -69,7 +69,7 @@
          (tree (cl-loop for (key parents) in data
                         collect (cons key (split-string parents "," t)))))
     (cl-loop for ing in (map-keys tree) 
-             count (puz-search-tree tree ing "NULL" ))))
+             count (puz-search-tree2 tree ing "NULL" ))))
 
 (message "Solution for part 2 is = %S" (solve-part2))
 
@@ -98,9 +98,9 @@
       (cl-loop for key in (map-keys tree)
                do (setq seen (make-hash-table :test 'equal))
                for nulls = (seq-uniq (iterate-it key))
-               count (<= 2 (length nulls ))
-               finally do (puthash key nulls cache); Note, we can only cache at this top level
-               ))))                                ; Due to circular links
+               do (puthash key nulls cache); Note, we can only cache at this top level
+               count (<= 2 (length nulls )); Due to circular links
+               ))))                                
 
 (setq max-lisp-eval-depth 10000 )
 (message "Solution for part 3 is = %S" (solve-part3))
